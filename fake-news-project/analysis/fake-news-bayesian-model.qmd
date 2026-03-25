@@ -1,0 +1,309 @@
+---
+title: "Detectando Fake News com Inferência Bayesiana"
+author: "Miguel Fiorin"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
+
+```
+
+```{r loadpackages, results='hide', message=FALSE}
+library(bayesrules)
+library(tidyverse)
+library(janitor)
+library(kableExtra)
+library(knitr)
+
+```
+
+## Motivação: Identificação de Notícias Falsas (”Fake news”)
+
+Com a proliferação de notícias nas redes sociais, torna-se essencial desenvolver filtros capazes de distinguir artigos reais de “fake news”. Com base em uma amostra de 150 artigos publicados no Facebook e verificados por jornalistas do BuzzFeed, este documento tem como objetivo calcular a probabilidade de um novo artigo ser falso, dado que apresentamos uma característica específica em seu título.
+
+## Estabelecendo Crença Inicial: Priori
+
+```{r importdata, include=FALSE}
+data(fake_news)
+```
+
+```{r tabela-prior}
+tabela_prior <- fake_news %>%
+  tabyl(type) %>%
+  adorn_totals("row") %>%
+  rename(
+         Classe = type,
+         Quantidade = n,
+         Porcentagem = percent
+         )
+```
+
+```{r}
+kable(
+      tabela_prior,
+      caption = "Artigos Avaliados por Jornalista do BuzzFeed ",
+      digits = 2,
+      align = "c"
+) %>%
+  kable_styling()
+```
+
+<br><br>
+
+```{r, fig.align= "center", out.width= "70%"}
+tabela_prior %>%
+  filter(Classe != "Total") %>%
+  
+  ggplot(aes(x = Classe, y = Quantidade, fill = Classe)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("fake" = "#CD5555", "real" = "#8DB6CD")) +
+  theme_minimal() +
+  labs(
+       title = "Distribuição de Fake News e Notícias Reais",
+       caption = "Fonte: pacote bayesrules (dataset fake_news)"
+       ) +
+  theme(
+        plot.title = element_text(
+                                  size = 14,
+                                  face = "bold",
+                                  hjust = 0.5,
+                                  margin = margin(b = 20)
+                                  ),
+        plot.caption = element_text(margin = margin(t = 25)),
+                                  
+  )
+```
+
+A partir dos dados coletados, contabilizamos os artigos classificados como *fake* e *real*, construindo uma tabela de frequências com as proporções de cada categoria. Além disso, apresentamos um gráfico de barras para visualizar a comparação entre as quantidades observadas.
+
+Definimos o evento de um artigo ser falso como B. Com base nessa distribuição inicial, estabelecemos o modelo a priori da seguinte forma:
+
+**Modelo da Priori**
+
+$$
+\begin{aligned}
+P(B) &= 0.4 \\
+P(B^c) &= 0.6
+\end{aligned}
+$$
+
+Portanto, a interpretação dessas probabilidades é que, ao observarmos um novo artigo, atribuímos inicialmente uma probabilidade de 40% de ele ser falso, com base no conjunto de dados analisado.
+
+## A Evidência: o Uso de Pontos de Exclamação
+
+Definimos o evento A como a presença de um ponto de exclamação no título do artigo. A partir do banco de dados, os artigos foram então classificados de acordo com duas dimensões: o tipo (*fake* ou *real*) e a presença ou ausência de ponto de exclamação no título.
+
+```{r}
+tab_evidencia <- fake_news %>%
+  tabyl(title_has_excl,type) %>%
+  adorn_totals("row") %>%
+  mutate(
+         title_has_excl = c("Não", "Sim", "Total")
+        )
+```
+
+```{r}
+kable(
+      tab_evidencia,
+      col.names = c("Presença de Exclamação", "Fake", "Real"),
+      caption = "O Uso de Exclamação e o Tipo de Artigo",
+      align = "c"
+) %>%
+  kable_styling()
+```
+
+```{r}
+tabela_long_evidencia <- tab_evidencia %>%
+  filter(title_has_excl != "Total") %>%
+  pivot_longer(
+    cols = c(fake, real),
+    names_to = "type",
+    values_to = "quantidade"
+  )
+```
+
+<br><br>
+
+```{r, fig.align= "center", out.width= "70%"}
+tabela_long_evidencia %>%
+  ggplot(aes(x = title_has_excl, y = quantidade, fill = type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("fake" = "#CD5555", "real" = "#8DB6CD")) +
+  theme_minimal() +
+  labs(
+       title = "Distribuição de Fake News por Uso de Exclamação",
+       caption = "Fonte: pacote bayesrules (dataset fake_news)",
+       y = "Frequência",
+       x = "Presença de exclamação",
+       fill = "Classe"
+       ) +
+  theme(
+        plot.title = element_text(
+                                  size = 14,
+                                  face = "bold",
+                                  hjust = 0.5,
+                                  margin = margin(b=20)
+                                  ),
+        plot.caption = element_text(margin = margin(t = 25)),
+  )
+```
+
+<br><br>
+
+```{r, fig.align= "center", out.width= "70%"}
+tabela_long_evidencia %>%
+  ggplot(aes(x = type, y = title_has_excl, fill = quantidade)) +
+  geom_tile() +
+  geom_text(aes(label = quantidade), color = "black") +
+  scale_fill_gradient(low = "#f5f5f5", high = "#8DB6CD") +
+  theme_minimal() +
+  labs(
+       title = "Tabela de Contingência: Exclamação vs Tipo de Notícia",
+       caption = "Fonte: pacote bayesrules (dataset fake_news)",
+       x = "Classe",
+       y = "Presença de Exclamação"
+  ) +
+  theme(
+        plot.title = element_text(
+                                  size = 14,
+                                  face = "bold",
+                                  hjust = 0.5,
+                                  margin = margin(b=20)
+                                  ),
+        plot.caption = element_text(margin = margin(t = 25)),
+        )
+```
+
+Com base na tabela e nos gráficos apresentados, observa-se que a presença de ponto de exclamação é mais frequente em artigos classificados como *fake*. O heatmap reforça essa evidência ao mostrar que a maior parte dos dados corresponde a artigos reais sem exclamação no título (88 de 150 observações), enquanto apenas 2 artigos reais apresentam exclamação.
+
+A partir da tabela de contingência apresentada, é possível calcular a verossimilhança da evidência observada. Temos:
+
+$$
+P(A \mid B) = 0.2667 \\
+P(A \mid B^c) = 0.0222
+$$
+
+Esses resultados indicam que a presença de ponto de exclamação é significativamente mais provável em notícias falsas do que em notícias reais, dentro da amostra analisada.
+
+## Contruindo a nossa posteriori
+
+### Constante Normalizadora
+
+A constante normalizadora é dada pela probabilidade de observar a evidência P(A)P(A)P(A). Para calculá-la, utilizamos a Lei da Probabilidade Total:
+
+$$
+P(A) = \sum_{i=1}^{n} P(A \mid B_i)\,P(B_i)
+$$
+
+Substituindo os valores obtidos:
+
+$$
+P(A) = (0.2667 \cdot 0.4) + (0.0222 \cdot 0.6) = 0.12
+$$
+
+Portanto, a probabilidade de observar a evidência A é de 12%, de acordo com os dados analisados.
+
+### Calculando a Posteriori:
+
+Assim, com base no objetivo da inferência bayesiana, que consiste em atualizar a crença inicial a partir dos dados observados, buscamos calcular a probabilidade de um artigo ser *fake* dado a evidência observada, isto é, a presença de um ponto de exclamação no título.
+
+Aplicando o Teorema de Bayes, obtemos a probabilidade da classe do artigo condicionada à evidência observada:
+
+$$
+P(B \mid A) = \frac{P(A \mid B)\,P(B)}{P(A)} = \frac{0.2667 \cdot 0.4}{0.12} = 0.889
+$$
+
+$$
+P(B^c \mid A) = \frac{0.0222 \cdot 0.6}{0.12} = 0.111
+$$
+
+```{r}
+tabela_prob <- tibble(
+  Evento = c("probabilidade priori", "probabilidade posteriori"),
+  Fake = c(0.4, 0.889),
+  Real = c(0.6, 0.111),
+  Total = c(1, 1)
+)
+
+kable(
+  tabela_prob,
+  digits = 4,
+  align = "c",
+  caption = "Probabilidade da Priori e Posteriori"
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    bootstrap_options = c("striped", "hover")
+  ) %>%
+  row_spec(0, bold = TRUE)
+```
+
+<br><br>
+
+```{r, fig.align= "center", out.width= "70%"}
+tabela_prob <- tabela_prob %>%
+  mutate(Evento = factor(Evento, levels = c("probabilidade priori", "probabilidade posteriori")))
+
+tabela_long <- tabela_prob %>%
+  pivot_longer(cols = c(Fake, Real),
+               names_to = "Classe",
+               values_to = "Prob")
+
+library(ggplot2)
+
+ggplot(tabela_long, aes(x = Classe, y = Prob, fill = Evento)) +
+  geom_col(position = position_dodge2(width = 0.8, preserve = "single"), width = 0.7) +
+  scale_fill_manual(values = c(
+    "probabilidade priori" = "#A4D3EE",
+    "probabilidade posteriori" = "#607B8B"
+  )) +
+  theme_minimal(base_size = 12) +
+  labs(
+    title = "Atualização Bayesiana: Priori vs Posteriori",
+    subtitle = "Mudança nas probabilidades após observar evidências",
+    y = "Probabilidade",
+    x = "Classe",
+    fill = "",
+    caption = "Fonte: pacote bayesrules (dataset fake_news)",
+  ) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )+
+  theme(
+        plot.title = element_text(
+                                  size = 14,
+                                  face = "bold",
+                                  hjust = 0.5,
+                                  ),
+        plot.subtitle = element_text(
+                                     hjust = 0.5,
+                                     margin = margin(b = 20)
+                                     ),
+        plot.caption = element_text(margin = margin(t = 25)),
+        )
+```
+
+## Conclusão
+
+Ao construirmos um conhecimento prévio (priori) a partir da amostra analisada, nossa crença inicial era de que a probabilidade de um artigo ser *fake* ao selecioná-lo era de 40%. Após observarmos a evidência de que o título contém um ponto de exclamação, atualizamos essa crença por meio da inferência bayesiana.
+
+A partir das probabilidades condicionais, obtemos a distribuição posterior (posteriori), que indica que, ao observar uma exclamação no título, a probabilidade de o artigo ser *fake* aumenta para aproximadamente 89%.
+
+Dessa forma, a inferência bayesiana permite atualizar de maneira consistente nosso conhecimento inicial à medida que novas evidências são incorporadas.
+
+## Referências
+
+JOHNSON, Alicia A.; OTT, Miles Q.; DOGUCU, Mine. *Bayes Rules! An Introduction to Bayesian Modeling*.
+
+R Core Team. *R: A Language and Environment for Statistical Computing*.
+
+Pacotes utilizados: tidyverse, bayesrules, kableExtra, janitor.
