@@ -10,4 +10,4 @@ Based on the book: **“Bayes’ Rules” – Alicia A. Johnson, Miles Q. Ott, M
 - Projects
 - Data Analyses
 
-This repository is meant to organize and document my learning throughout the course. (R)
+This repository is meant to organize and document my learning throughout the course.
