@@ -1,0 +1,115 @@
+---
+format: pdf
+editor: visual
+execute:
+  echo: false
+---
+
+\begin{titlepage}
+    \centering
+    
+    \vspace*{3.5cm}
+    
+    {\LARGE \textbf{Atualização Bayesiana de Crenças: \\ Modelando a Taxa de Mensagens por Hora}\par}
+    
+    \vspace{1.5cm}
+    
+    {\large Aplicação do modelo Gamma-Poisson para atualização de crenças com dados observados\par}
+    
+    \vfill
+    
+    {\large Miguel Fiorin\par}
+    
+    \vspace{0.3cm}
+    
+    {\large Março de 2026\par}
+    
+\end{titlepage}
+
+```{r loadpackages, results='hide', message=FALSE, include=FALSE}
+library(bayesrules)
+library(knitr)
+library(kableExtra)
+```
+
+## Motivação
+
+O uso frequente de redes sociais em smartphones é uma característica marcante da sociedade atual. Esperamos e reagimos constantemente a notificações em nossas telas. Nesse contexto, o número de mensagens recebidas por hora pode ser tratado como uma variável aleatória, permitindo analisar estatisticamente sua taxa média ao longo do tempo.
+
+Para isso, utilizamos a Inferência Bayesiana, que permite combinar uma crença inicial sobre essa taxa desconhecida com dados observados, atualizando nosso entendimento de forma consistente e interpretável.
+
+Portanto, o objetivo deste projeto é modelar a distribuição a posteriori de λ, permitindo inferir a taxa média de mensagens recebidas por hora a partir da combinação entre crenças iniciais e dados observados.
+
+## Modelo Gamma-Poisson
+
+Como o número de mensagens recebidas por hora é uma variável de contagem, assumimos que $X \sim \text{Poisson}(\lambda)$. Para modelar a incerteza sobre $\lambda$, que assume valores contínuos e positivos, adotamos uma distribuição a priori $\lambda \sim \text{Gamma}(s, r)$, adequada por seu suporte e por ser conjugada à Poisson.
+
+## Contrução da Priori
+
+Inicialmente, consideramos que a taxa média de mensagens recebidas por hora é 5. Para permitir maior flexibilidade ao modelo e dar mais peso aos dados observados, adotamos uma priori menos informativa $\text{Gamma}(10, 2)$, que mantém essa média, mas com maior variabilidade.
+
+```{r, out.width="70%", fig.align='center'}
+plot_gamma(10,2)
+```
+
+## Likelihood (Verossimilhança)
+
+Suponha que observamos o número de mensagens recebidas em uma hora para 6 indivíduos: 7, 3, 8, 9, 10 e 12. A partir desses dados, construímos a função de verossimilhança associada ao modelo Poisson, que descreve quais valores de $\lambda$ são mais compatíveis com a amostra observada.\
+
+```{r, out.width="70%", fig.align='center'}
+plot_poisson_likelihood(y = c(7, 3, 8, 9, 10, 12), lambda_upper_bound = 15)
+```
+
+Observa-se que, dada a amostra, os valores mais compatíveis para λ estão aproximadamente entre 7.5 e 9.5
+
+## Posteriori
+
+### Posteriori
+
+Utilizando a conjugação entre as distribuições Gamma e Poisson, temos que a distribuição a posteriori é dada por:
+
+$$
+\lambda \mid \mathbf{y} \sim \text{Gamma}(s + \sum y_i,\; r + n)
+$$
+
+Substituindo os valores observados, obtemos:
+
+$$
+\lambda \mid \mathbf{y} \sim \text{Gamma}(59,\; 8)
+$$
+
+```{r, out.width="70%", fig.align='center'}
+plot_gamma(59, 8)
+```
+
+A média da distribuição a posteriori é aproximadamente 7.4, indicando que o valor de λ se desloca em direção aos dados observados.
+
+### Comparação das Distribuições: Atualização Bayesiana
+
+```{r, out.width="70%", fig.align='center'}
+plot_gamma_poisson(shape = 10, rate = 2, sum_y = 49, n = 6)
+```
+
+```{r}
+df_atualizacao_bayesiana <- summarize_gamma_poisson(shape = 10, rate = 2, sum_y = 49, n = 6)
+
+df_atualizacao_bayesiana %>%
+  kable(
+        caption = "Resumo das distribuições a priori e a posteriori",
+        align = "c",
+        digits = 4
+        ) %>%
+  kable_styling()
+```
+
+Ao comparar as três distribuições, observamos que a priori está centrada em 5 e apresenta maior dispersão, refletindo uma crença inicial mais incerta. Por outro lado, a verossimilhança indica que os valores mais compatíveis para λ estão aproximadamente entre 7.5 e 9.5.
+
+A distribuição a posteriori representa um equilíbrio entre essas duas fontes de informação, resultando em uma média de aproximadamente 7.37 e moda de 7.25. Além disso, observa-se uma redução no desvio padrão em relação à priori, indicando um aumento na precisão da estimativa após a incorporação dos dados.
+
+\newpage
+
+## Referências
+
+-   Johnson, A. A., Ott, M. Q., & Dogucu, M. (2022). *Bayes Rules! An Introduction to Applied Bayesian Modeling*. CRC Press.
+
+-   Documentação do pacote bayesrules: <https://cran.r-project.org/package=bayesrules>
