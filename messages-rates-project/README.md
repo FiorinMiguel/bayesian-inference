@@ -9,3 +9,4 @@ This project estimates the average number of messages per hour using **Bayesian 
 **Result:** posterior mean ≈ 7.37 messages/hour.
 
 **Tools:** R, Quarto, bayesrules
+[view] (msg-project.pdf)
