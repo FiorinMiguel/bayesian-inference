@@ -1,4 +1,4 @@
-# Bayesian Modeling of Message Rates
+# Bayesian Modeling of Message Rates: Gamma–Poisson model
 
 This project estimates the average number of messages per hour using **Bayesian inference** with a Gamma–Poisson model. The context and data come from Exercises 5.5, 5.6, and 5.7.1 of *Bayes Rules!* (Johnson et al., 2022).
 
