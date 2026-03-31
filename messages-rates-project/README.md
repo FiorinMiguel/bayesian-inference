@@ -10,4 +10,4 @@ This project estimates the average number of messages per hour using **Bayesian 
 
 **Tools:** R, Quarto, bayesrules
 
-[view](msg-project.pdf)
+[Final Report](msg-project.pdf)
